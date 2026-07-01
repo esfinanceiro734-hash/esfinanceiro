@@ -1,0 +1,88 @@
+# ============================================================
+# FinancePro — Netlify deployment configuration
+# ============================================================
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION  = "20"
+  NPM_VERSION   = "10"
+  # Garante que variáveis VITE_* estejam presentes antes do build.
+  # Defina-as em: Netlify > Site > Environment variables
+  # VITE_SUPABASE_URL      = https://xxxx.supabase.co
+  # VITE_SUPABASE_ANON_KEY = eyJh...
+
+# ── Contextos de build ────────────────────────────────────────
+
+[context.production]
+  command = "npm run build"
+
+[context.deploy-preview]
+  command = "npm run build"
+
+[context.branch-deploy]
+  command = "npm run build"
+
+# ── SPA fallback ─────────────────────────────────────────────
+# Todas as rotas do React Router resolvem para index.html,
+# evitando erro 404 ao acessar uma URL diretamente ou recarregar.
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# ── Headers de segurança ─────────────────────────────────────
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Impede clickjacking
+    X-Frame-Options = "DENY"
+    # Evita sniffing de MIME type
+    X-Content-Type-Options = "nosniff"
+    # Força HTTPS por 1 ano (incluindo subdomínios)
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # Limita informações do referrer
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Desativa funcionalidades sensíveis do browser não usadas pelo app
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    # Content Security Policy — permite Supabase, Google Fonts e Anthropic
+    Content-Security-Policy = """
+      default-src 'self';
+      script-src 'self' 'unsafe-inline';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https://*.supabase.co;
+      connect-src 'self'
+        https://*.supabase.co
+        wss://*.supabase.co
+        https://api.anthropic.com;
+    """
+
+# ── Cache de assets estáticos ────────────────────────────────
+# Arquivos de assets gerados pelo Vite têm hash no nome,
+# portanto podem ser armazenados em cache por 1 ano.
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# index.html: sem cache (garante que novo deploy é servido imediatamente)
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
